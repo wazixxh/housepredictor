@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-mint-50 text-ink-900 antialiased;
+}
+
+::selection {
+  @apply bg-emerald-400/30 text-forest-900;
+}
+
+/* Visible keyboard focus, kept consistent across the app */
+:focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/60 backdrop-blur-xl border border-white/40 shadow-glass;
+  }
+
+  .glass-panel-dark {
+    @apply bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-glass-lg;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3
+      text-sm font-semibold text-white shadow-glass transition-all duration-200
+      hover:bg-emerald-600 hover:shadow-glass-lg active:scale-[0.98]
+      disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-forest-900/15
+      bg-white/70 px-6 py-3 text-sm font-semibold text-forest-900 backdrop-blur-xl transition-all duration-200
+      hover:bg-white active:scale-[0.98];
+  }
+
+  .btn-ghost-dark {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/20
+      bg-white/5 px-6 py-3 text-sm font-semibold text-white backdrop-blur-xl transition-all duration-200
+      hover:bg-white/10 active:scale-[0.98];
+  }
+
+  .field-label {
+    @apply text-xs font-semibold uppercase tracking-wide text-ink-500;
+  }
+
+  .field-input {
+    @apply w-full rounded-xl border border-forest-900/10 bg-white/80 px-4 py-3 text-sm text-ink-900
+      placeholder:text-ink-500/60 transition-colors focus:border-emerald-500 focus:bg-white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
