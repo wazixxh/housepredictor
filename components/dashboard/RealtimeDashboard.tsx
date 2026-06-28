@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { Trash2 } from "lucide-react";
 import {
   StatsRow,
   PredictionHistory,
@@ -32,7 +33,10 @@ export default function RealtimeDashboard({ userId, userName, initialPredictions
   const [predictions, setPredictions] = useState<HistoryItem[]>(initialPredictions);
   const [isLive, setIsLive]           = useState(false);
   const [justUpdated, setJustUpdated] = useState(false);
+  const [clearing, setClearing]       = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
+  // Supabase Realtime subscription
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -40,7 +44,6 @@ export default function RealtimeDashboard({ userId, userName, initialPredictions
 
     const supabase = createClient(url, key);
 
-    // Subscribe to new predictions for this user
     const channel = supabase
       .channel("predictions-live")
       .on(
@@ -52,15 +55,14 @@ export default function RealtimeDashboard({ userId, userName, initialPredictions
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const d = payload.new as any;
+          const d = payload.new as Record<string, unknown>;
           const newItem: HistoryItem = {
-            id:        d.id,
-            input:     d.input,
+            id:        String(d.id),
+            input:     d.input as Record<string, unknown>,
             estimate:  safeNum(d.estimate),
-            createdAt: d.created_at,
+            createdAt: String(d.created_at),
           };
           setPredictions((prev) => [newItem, ...prev]);
-          // Flash the "Live" indicator
           setJustUpdated(true);
           setTimeout(() => setJustUpdated(false), 3000);
         }
@@ -69,10 +71,26 @@ export default function RealtimeDashboard({ userId, userName, initialPredictions
         setIsLive(status === "SUBSCRIBED");
       });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [userId]);
+
+  // Reset all predictions for this user
+  async function handleClear() {
+    if (!showConfirm) {
+      setShowConfirm(true);
+      // Auto-cancel confirm after 4 seconds
+      setTimeout(() => setShowConfirm(false), 4000);
+      return;
+    }
+    setClearing(true);
+    try {
+      await fetch("/api/predictions/clear", { method: "DELETE" });
+      setPredictions([]);
+    } finally {
+      setClearing(false);
+      setShowConfirm(false);
+    }
+  }
 
   const estimates = predictions.map((p) => safeNum(p.estimate));
   const count     = estimates.length;
@@ -82,8 +100,9 @@ export default function RealtimeDashboard({ userId, userName, initialPredictions
 
   return (
     <div className="animate-fade-up space-y-7">
+
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <span className="field-label text-emerald-600">Dashboard</span>
           <h1 className="mt-2 font-display text-3xl font-bold text-forest-900 sm:text-4xl">
@@ -94,18 +113,35 @@ export default function RealtimeDashboard({ userId, userName, initialPredictions
           </p>
         </div>
 
-        {/* Live indicator */}
-        <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
-          justUpdated
-            ? "bg-emerald-500 text-white scale-105"
-            : isLive
-            ? "bg-emerald-50 text-emerald-700"
-            : "bg-forest-900/5 text-ink-400"
-        }`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${
-            justUpdated ? "bg-white" : isLive ? "bg-emerald-500 animate-pulse" : "bg-ink-300"
-          }`} />
-          {justUpdated ? "Updated!" : isLive ? "Live" : "Connecting..."}
+        {/* Controls: Reset + Live indicator */}
+        <div className="flex shrink-0 items-center gap-3 pt-1">
+          {/* Reset button */}
+          <button
+            onClick={handleClear}
+            disabled={clearing || count === 0}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-40 ${
+              showConfirm
+                ? "border-red-400 bg-red-50 text-red-600 scale-105"
+                : "border-forest-900/15 bg-white text-ink-600 hover:border-red-300 hover:text-red-500"
+            }`}
+          >
+            <Trash2 size={12} />
+            {clearing ? "Clearing..." : showConfirm ? "Confirm reset?" : "Reset all"}
+          </button>
+
+          {/* Live dot */}
+          <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+            justUpdated
+              ? "bg-emerald-500 text-white scale-105"
+              : isLive
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-forest-900/5 text-ink-400"
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${
+              justUpdated ? "bg-white" : isLive ? "bg-emerald-500 animate-pulse" : "bg-ink-300"
+            }`} />
+            {justUpdated ? "Updated!" : isLive ? "Live" : "Connecting..."}
+          </div>
         </div>
       </div>
 
@@ -117,7 +153,7 @@ export default function RealtimeDashboard({ userId, userName, initialPredictions
         <PortfolioMetricsChart count={count} average={average} highest={highest} lowest={lowest} />
       )}
 
-      {/* Comparison */}
+      {/* Per-prediction comparison */}
       {count >= 2 && <PredictionComparison items={predictions} />}
 
       {/* Trend + market + donut */}
@@ -129,6 +165,7 @@ export default function RealtimeDashboard({ userId, userName, initialPredictions
 
       {/* History */}
       <PredictionHistory items={predictions} />
+
     </div>
   );
 }
