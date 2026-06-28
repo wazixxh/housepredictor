@@ -1,4 +1,12 @@
 import bcrypt from "bcryptjs";
+import { createClient } from "@supabase/supabase-js";
+
+function getClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Supabase env vars missing.");
+  return createClient(url, key, { auth: { persistSession: false } });
+}
 
 export interface User {
   id: string;
@@ -16,20 +24,36 @@ export interface SavedPrediction {
   createdAt: string;
 }
 
-// In-memory store — resets on server restart.
-// Shape matches the Supabase schema in supabase/schema.sql so migration
-// is a one-file swap when you're ready.
-const users: User[] = [];
-const predictions: SavedPrediction[] = [];
-let userSeq = 1;
-let predSeq  = 1;
-
 export async function getUserByEmail(email: string): Promise<User | undefined> {
-  return users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  const { data } = await getClient()
+    .from("users")
+    .select("*")
+    .eq("email", email.toLowerCase())
+    .single();
+  if (!data) return undefined;
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    passwordHash: data.password_hash,
+    createdAt: data.created_at,
+  };
 }
 
 export async function getUserById(id: string): Promise<User | undefined> {
-  return users.find((u) => u.id === id);
+  const { data } = await getClient()
+    .from("users")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (!data) return undefined;
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    passwordHash: data.password_hash,
+    createdAt: data.created_at,
+  };
 }
 
 export async function createUser(params: {
@@ -40,15 +64,23 @@ export async function createUser(params: {
   const existing = await getUserByEmail(params.email);
   if (existing) throw new Error("An account with that email already exists.");
   const passwordHash = await bcrypt.hash(params.password, 10);
-  const user: User = {
-    id: String(userSeq++),
-    name: params.name,
-    email: params.email.toLowerCase(),
-    passwordHash,
-    createdAt: new Date().toISOString(),
+  const { data, error } = await getClient()
+    .from("users")
+    .insert({
+      name: params.name,
+      email: params.email.toLowerCase(),
+      password_hash: passwordHash,
+    })
+    .select()
+    .single();
+  if (error || !data) throw new Error("Could not create account.");
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    passwordHash: data.password_hash,
+    createdAt: data.created_at,
   };
-  users.push(user);
-  return user;
 }
 
 export async function verifyPassword(
@@ -66,33 +98,35 @@ export async function savePrediction(
   input: Record<string, unknown>,
   estimate: number
 ): Promise<SavedPrediction> {
-  const record: SavedPrediction = {
-    id: String(predSeq++),
-    userId,
-    input,
-    estimate,
-    createdAt: new Date().toISOString(),
+  const { data, error } = await getClient()
+    .from("predictions")
+    .insert({ user_id: userId, input, estimate })
+    .select()
+    .single();
+  if (error || !data) throw new Error("Could not save prediction.");
+  return {
+    id: data.id,
+    userId: data.user_id,
+    input: data.input,
+    estimate: data.estimate,
+    createdAt: data.created_at,
   };
-  predictions.push(record);
-  return record;
 }
 
 export async function getPredictionsForUser(
   userId: string
 ): Promise<SavedPrediction[]> {
-  return predictions
-    .filter((p) => p.userId === userId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const { data } = await getClient()
+    .from("predictions")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (!data) return [];
+  return data.map((d) => ({
+    id: d.id,
+    userId: d.user_id,
+    input: d.input,
+    estimate: d.estimate,
+    createdAt: d.created_at,
+  }));
 }
-
-// Seed a demo account so reviewers can log in immediately:
-// demo@estatepredict.com / demo1234
-(async () => {
-  if (users.length === 0) {
-    await createUser({
-      name: "Demo User",
-      email: "demo@estatepredict.com",
-      password: "demo1234",
-    });
-  }
-})();
