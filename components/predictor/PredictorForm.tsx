@@ -233,8 +233,8 @@ export default function PredictorForm() {
         <div className="mt-5 space-y-3 border-t border-forest-900/10 pt-4 text-xs text-ink-700">
           <Row label="Model type" value="Multiple Linear Regression" />
           <Row label="Training records" value="4,600 home sales" />
-          <Row label="R² (accuracy)" value="0.78" />
-          <Row label="Avg. error" value="≈ $71,766" />
+          <Row label="R² (accuracy)" value="0.69" />
+          <Row label="Avg. error" value="≈ $87,046" />
         </div>
       </Card>
     </form>

@@ -46,8 +46,8 @@ export default function HomePage() {
               </div>
 
               <dl className="mt-12 grid max-w-md grid-cols-3 gap-6 border-t border-white/10 pt-8">
-                <Stat value="0.78" label="R² accuracy" />
-                <Stat value="±$71.8K" label="Avg. error" />
+                <Stat value="0.69" label="R² accuracy" />
+                <Stat value="±$87K" label="Avg. error" />
                 <Stat value="44" label="Cities covered" />
               </dl>
             </div>
@@ -107,7 +107,7 @@ export default function HomePage() {
               <ul className="mt-7 space-y-3 text-sm text-white/80">
                 <li className="flex items-start gap-2">
                   <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                  R² of 0.78 against held-out test sales
+                  R² of 0.69 against held-out test sales
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
